@@ -67,9 +67,11 @@ const (
     Green   = "\033[32m"
     Yellow  = "\033[33m"
     Blue    = "\033[34m"
+	BBlue	= "\033[94m"
     Magenta = "\033[35m"
     Cyan    = "\033[36m"
     White   = "\033[37m"
+    Gray	= "\033[90m"
 
     // Bold
     BoldBlack   = "\033[1;30m"
