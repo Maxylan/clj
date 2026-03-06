@@ -39,19 +39,19 @@ func register_default(
 				{
 					Name:			"Detailed view",
 					Usage:			fmt.Sprintf("%s <...> [-d|--detailed]", program.Name),
-					Description:	"Include as many details as possible",
+					Description:	"\"Include as many details as possible\"",
 					Subcommands: 	[]CommandDetails{},
 				},
 				{
 					Name:			"Include comments",
 					Usage:			fmt.Sprintf("%s <...> [-c|--comments]", program.Name),
-					Description:	"Render the whole comment section",
+					Description:	"\"Render the whole comment section\"",
 					Subcommands: 	[]CommandDetails{},
 				},
 				{
 					Name:			"Only comments",
 					Usage:			fmt.Sprintf("%s <...> [-o|--only-comments]", program.Name),
-					Description:	"Render *only* the comment section",
+					Description:	"\"Render *only* the comment section\"",
 					Subcommands: 	[]CommandDetails{},
 				},
 				/*{ // Not implemented

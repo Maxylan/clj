@@ -29,7 +29,7 @@ func register_help(
 			Subcommands: []CommandDetails{{
 				Name:			"Minimal",
 				Usage:			fmt.Sprintf("%s help minimal|[-m|--minimal]", program.Name),
-				Description:	"Omit lengthy descriptions, only printing command name + usage.",
+				Description:	"\"Omit lengthy descriptions, only printing command name + usage.\"",
 				Subcommands: 	[]CommandDetails{},
 			}},
 		},

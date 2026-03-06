@@ -21,7 +21,7 @@ clj v1.0.0 [clj]
 ╰ Subcommands:
         • Minimal
         ├ clj help minimal|[-m|--minimal]
-        ╰ Omit lengthy descriptions, only printing command name + usage.
+        ╰ "Omit lengthy descriptions, only printing command name + usage."
 
 
 » Init (initial setup / configuration)
@@ -38,11 +38,11 @@ clj v1.0.0 [clj]
 ╰ Subcommands:
         • Detailed view
         ├ clj <...> [-d|--detailed]
-        ╰ Include as many details as possible
+        ╰ "Include as many details as possible"
         • Include comments
         ├ clj <...> [-c|--comments]
-        ╰ Render the whole comment section
+        ╰ "Render the whole comment section"
         • Only comments
         ├ clj <...> [-o|--only-comments]
-        ╰ Render *only* the comment section
+        ╰ "Render *only* the comment section"
 ```
