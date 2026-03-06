@@ -7,48 +7,64 @@ import (
 	"strings"
 )
 
-var (
-	reItalic     	= regexp.MustCompile(`_(.+?)_`)
-	reBold       	= regexp.MustCompile(`\*(.+?)\*`)
-	reH6         	= regexp.MustCompile(`(?m)^ *h6\.\s*(.+)$`)
-	reH5         	= regexp.MustCompile(`(?m)^ *h5\.\s*(.+)$`)
-	reH4         	= regexp.MustCompile(`(?m)^ *h4\.\s*(.+)$`)
-	reH3         	= regexp.MustCompile(`(?m)^ *h3\.\s*(.+)$`)
-	reH2         	= regexp.MustCompile(`(?m)^ *h2\.\s*(.+)$`)
-	reH1         	= regexp.MustCompile(`(?m)^ *h1\.\s*(.+)$`)
-	reQuote      	= regexp.MustCompile(`(?ms)\{quote\}(.+?)\{quote\}`)
-	reBulletNested	= regexp.MustCompile(`(?m)^ *(\*{2,})\s*(.+)$`)
-	reBulletTop  	= regexp.MustCompile(`(?m)^ *\*\s+(.+)$`)
-	reShorten		= regexp.MustCompile(`(\s+ *\s+) *\s+ *\s+`)
-)
+func FixAnsiiOverlap(input string, codes []string, insert string) string {
+	str := input
+
+	for _, code := range codes {
+		if i := strings.Index(input, code); i > -1 {
+			offset := i + len(code)
+			str = input[:offset] + insert
+
+			if len(input) > offset + 1 {
+				str += FixAnsiiOverlap(input[offset:], []string{ code }, insert)
+			}
+		}
+	}
+
+	return str
+}
 
 /** ParseJiraMarkdown converts Jira wiki markup to ANSI-formatted terminal output. */
 func ParseJiraMarkdown(input string) string {
 	s := input
 
+	// Bold (before italic, to avoid * conflicts)
+	s = reBold.ReplaceAllString(s, Bold+"$1"+NoBold)
+
+	// Italic
+	s = reItalic.ReplaceAllString(s, Italic+"$1"+NoItalic)
+
 	// Shorten the string by removing unecessary amounts of newlines
 	s = reShorten.ReplaceAllString(s, "$1")
 
-	// Quotes (before bold, since {quote} blocks may contain *)
+	// Quotes
 	s = reQuote.ReplaceAllStringFunc(s, func(match string) string {
 		inner := reQuote.FindStringSubmatch(match)[1]
 		inner = strings.TrimSpace(inner)
-		return Dim + inner + Reset
+		inner = FixAnsiiOverlap(inner, []string{ NoDim, Reset }, Dim);
+
+		return "\n> \"" + Dim + inner + NoDim + "\""
 	})
 
 	// Headlines h1-h5 → Bold
 	for _, re := range []*regexp.Regexp{reH1, reH2, reH3, reH4, reH5} {
 		s = re.ReplaceAllStringFunc(s, func(match string) string {
 			inner := re.FindStringSubmatch(match)[1]
-			return Bold + inner + Reset
+			inner = FixAnsiiOverlap(inner, []string{ NoBold, Reset }, Bold);
+
+			return Bold + inner + NoBold
 		})
 	}
 
 	// h6 → Italic
 	s = reH6.ReplaceAllStringFunc(s, func(match string) string {
 		inner := reH6.FindStringSubmatch(match)[1]
-		return Italic + inner + Reset
+		inner = FixAnsiiOverlap(inner, []string{ NoItalic, Reset }, Italic);
+		return Italic + inner + NoItalic
 	})
+
+	// Mono
+	s = reMono.ReplaceAllString(s, Red+"$1"+NoColor)
 
 	// Nested bullets (** and deeper) before top-level
 	s = reBulletNested.ReplaceAllStringFunc(s, func(match string) string {
@@ -60,12 +76,6 @@ func ParseJiraMarkdown(input string) string {
 
 	// Top-level bullets
 	s = reBulletTop.ReplaceAllString(s, "  • $1")
-
-	// Bold (before italic, to avoid * conflicts)
-	s = reBold.ReplaceAllString(s, Bold+"$1"+Reset)
-
-	// Italic
-	s = reItalic.ReplaceAllString(s, Italic+"$1"+Reset)
 
 	return s
 }
@@ -190,7 +200,8 @@ func FormatTicket(ticket Ticket) FormattedTicket {
 				NoItalic,
 			),
 		),
-		Divider: "  ",
+		Divider: 		"  ",
+		DividerShort: 	"  ",
 		Description:	ParseJiraMarkdown(ticket.Fields.Description),
 		Comments:		FormatTicketComments(ticket.Fields.Comment),
 	}
@@ -202,6 +213,15 @@ func FormatTicket(ticket Ticket) FormattedTicket {
 			ticket.Fields.Created,
 			ticket.Fields.Updated,
 		)) - 2,
+	)
+
+	out.DividerShort += strings.Repeat(
+		"─",
+		len(fmt.Sprintf( // len(..) w/o Ansii sequences
+			"%s/%s",
+			config.JiraURL,
+			ticket.Key,
+		)),
 	)
 
 	if len(ticket.Fields.Status.Description) > 0 {
@@ -216,18 +236,30 @@ func FormatTicketComments(commentSection TicketComments) string {
 		return ""
 	}
 
-	comments := Map(commentSection.Comments, func(comment JiraComment) string {
+	comments := Map(commentSection.Comments, func(comment JiraComment, i int) string {
+		if i > 0 && commentSection.Comments[i - 1].Author.Name == comment.Author.Name {
+			return fmt.Sprintf(
+				":\n┆╴%s%s%s (%s)%s\n%s",
+				Dim,
+				Italic,
+				comment.Created,
+				comment.Updated,
+				Reset,
+				ParseJiraMarkdown(comment.Body),
+			)
+		}
 		return fmt.Sprintf(
-			"┆\n╰ %s %s(%s), %s (%s)%s\n  %s",
+			"┆\n╰ %s %s(%s)\n  %s%s (%s)%s\n%s",
 			comment.Author.DisplayName,
 			Dim,
 			comment.Author.Name,
+			Italic,
 			comment.Created,
 			comment.Updated,
-			NoDim,
+			Reset,
 			ParseJiraMarkdown(comment.Body),
 		)
 	})
 
-	return "» Comments:\n" + strings.Join(comments, "\n")
+	return "» Comments:\n" + strings.Join(comments, "\n") + "\n"
 }

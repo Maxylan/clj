@@ -1,15 +1,17 @@
 package cmd
 
-import "strings"
+import (
+	"strings"
+)
 
 // Array Utilities
 
 /** Filters `source` {[]T}, returning a new slice of items matching predicate `pred` */
-func Filter[T any](source []T, pred func(T) bool) []T {
+func Filter[T any](source []T, pred func(T, int) bool) []T {
 	var out []T
 
-	for _, e := range source {
-		if pred(e) {
+	for i, e := range source {
+		if pred(e, i) {
 			out = append(out, e)
 		}
 	}
@@ -18,39 +20,39 @@ func Filter[T any](source []T, pred func(T) bool) []T {
 }
 
 /** Filters `source` {[]T}, appending items matching predicate `pred` to destination `dest` {[]T} */
-func AppendFilter[T any](source []T, dest *[]T, pred func(T) bool) {
-	for _, e := range source {
-		if pred(e) {
+func AppendFilter[T any](source []T, dest *[]T, pred func(T, int) bool) {
+	for i, e := range source {
+		if pred(e, i) {
 			*dest = append(*dest, e)
 		}
 	}
 }
 
 /** Maps `source` {[]TIn}, returning a new slice of items w/ predicate `pred` applied {[]TOut} */
-func Map[TIn any, TOut any](source []TIn, pred func(TIn) TOut) []TOut {
+func Map[TIn any, TOut any](source []TIn, pred func(TIn, int) TOut) []TOut {
 	var out []TOut
 
-	for _, e := range source {
-		out = append(out, pred(e))
+	for i, e := range source {
+		out = append(out, pred(e, i))
 	}
 
 	return out
 }
 
 /** Maps `source` {[]TIn}, appending items w/ predicate `pred` applied to destination `dest` {[]TOut} */
-func AppendMap[TIn any, TOut any](source []TIn, dest *[]TOut, pred func(TIn) TOut) {
-	for _, e := range source {
-		*dest = append(*dest, pred(e))
+func AppendMap[TIn any, TOut any](source []TIn, dest *[]TOut, pred func(TIn, int) TOut) {
+	for i, e := range source {
+		*dest = append(*dest, pred(e, i))
 	}
 }
 
 /** Maps `source` {[]TIn}, returning a new slice of items matching predicate `p1` w/ predicate `p2` applied {[]TOut} */
-func FilterMap[TIn any, TOut any](source []TIn, p1 func(TIn) bool, p2 func(TIn) TOut) []TOut {
+func FilterMap[TIn any, TOut any](source []TIn, p1 func(TIn, int) bool, p2 func(TIn, int) TOut) []TOut {
 	var out []TOut
 
-	for _, e := range source {
-		if p1(e) {
-			out = append(out, p2(e))
+	for i, e := range source {
+		if p1(e, i) {
+			out = append(out, p2(e, i))
 		}
 	}
 
@@ -72,6 +74,7 @@ const (
     Cyan    = "\033[36m"
     White   = "\033[37m"
     Gray	= "\033[90m"
+    NoColor	= "\033[39m"
 
     // Bold
     BoldBlack   = "\033[1;30m"
@@ -82,6 +85,8 @@ const (
     BoldMagenta = "\033[1;35m"
     BoldCyan    = "\033[1;36m"
     BoldWhite   = "\033[1;37m"
+    BoldGray	= "\033[1;90m"
+    BoldNoColor	= "\033[1;39m"
 
     // Background
     BgBlack   = "\033[40m"
@@ -110,4 +115,28 @@ const (
 
 func Ansii(strArr ...string) string {
 	return strings.Join(strArr, "") + Reset;
+}
+
+/** Matches given name(s) against simple RegEx pattern to determine if it/they are valid Jira ticket names */
+func IsValidTicketName(names ...string) bool {
+	if len(names) == 0 {
+		return false
+	}
+
+	for _, n := range names {
+		if !reTicketId.Match([]byte(n)) {
+			return false;
+		}
+	}
+
+	return true
+}
+
+func isStringArg(arg string) bool {
+	if len(arg) < 3 {
+		return false
+	}
+
+	// Ensure non-empty double-quoted string
+	return reDoubleQuoted.Match([]byte(arg))
 }

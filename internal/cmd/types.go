@@ -32,7 +32,7 @@ type Command struct {
 	Details	CommandDetails
 }
 
-type Commands [3]Command
+type Commands [4]Command
 
 type Config struct {
     JiraURL string `json:"jira_url"`
@@ -105,6 +105,10 @@ type JiraComment struct {
 	Updated		JiraTime	`json:"updated"`
 }
 
+type NewComment struct {
+	Body		string		`json:"body"`
+}
+
 type JiraTime struct {
     time.Time
 }
@@ -134,6 +138,7 @@ type FormattedTicket struct {
 	TicketDetails	string
 	TicketDates		string
 	Divider 		string
+	DividerShort 	string
 	Description		string
 	Comments		string
 }

@@ -51,8 +51,8 @@ func Help(args []string, msg string) {
 		// ..for-each registered command *matching* given args, print help. 
 		matches := FilterMap(
 			registry[:],
-			func(cmd Command) bool { return cmd.Name != "Help" && cmd.Match },
-			func(cmd Command) CommandDetails { return cmd.Details },
+			func(cmd Command, _ int) bool { return cmd.Name != "Help" && cmd.Match },
+			func(cmd Command, _ int) CommandDetails { return cmd.Details },
 		)
 
 		for i := range matches {

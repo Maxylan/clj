@@ -4,6 +4,7 @@ import (
 	"log"
 	"encoding/json"
 	"net/http"
+	"bytes"
 	"time"
 	"io"
 )
@@ -12,13 +13,21 @@ func request(
 	method string,
 	path string,
 	headersPtr *Headers,
+	bodyPtr *[]byte,
 ) (*http.Request, error) {
 	config, err := GetConfig();
 	if err != nil {
 		log.Fatal("Could not load user configuration", err)
 	}
 
-	req, reqErr := http.NewRequest(method, config.JiraURL + path, nil)
+	var body io.Reader = nil
+
+	if bodyPtr != nil {
+		body = bytes.NewBuffer(*bodyPtr)
+	}
+
+	req, reqErr := http.NewRequest(method, config.JiraURL + path, body)
+
 	if reqErr != nil {
 		return nil, reqErr
 	}
@@ -47,8 +56,8 @@ func request(
 	return req, nil;
 }
 
-func getTicket(ticketId string) (*Ticket, error) {
-	req, reqErr := request("GET", "/rest/api/2/issue/" + ticketId, nil)
+func get_ticket(ticketId string) (*Ticket, error) {
+	req, reqErr := request("GET", "/rest/api/2/issue/" + ticketId, nil, nil)
 
 	if reqErr != nil {
 		return nil, reqErr
@@ -71,4 +80,34 @@ func getTicket(ticketId string) (*Ticket, error) {
 	unmarshalError := json.Unmarshal(body, parsed)
 
 	return parsed, unmarshalError
+}
+
+func post_ticket_comment(ticketId string, comment NewComment) (bool, error) {
+	bodyData, marshalError := json.Marshal(comment)
+	if marshalError != nil {
+		return false, marshalError
+	}
+
+	req, reqErr := request(
+		"POST",
+		"/rest/api/2/issue/" + ticketId + "/comment",
+		&Headers{
+			"Content-Type": "application/json",
+		},
+		&bodyData,
+	)
+	if reqErr != nil {
+		return false, reqErr
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, resErr := client.Do(req)
+	if resErr != nil {
+		return false, resErr
+	}
+
+	defer resp.Body.Close()
+
+	body, readErr := io.ReadAll(resp.Body)
+	return body != nil, readErr
 }

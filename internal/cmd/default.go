@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -15,11 +14,11 @@ func register_default(
 	args	[]string,
 	program	ProgramDetails,
 ) Command {
-	var ticketIds []string
+	var ticketIDs []string
 
 	if len(args) > 0 {
-		ticketIds = Filter(args[1:], func(arg string) bool {
-			return arg[0] != '-' && !strings.Contains(arg, "--")
+		ticketIDs = Filter(args[1:], func(arg string, _ int) bool {
+			return arg[0] != '-'
 		})
 	}
 
@@ -30,8 +29,8 @@ func register_default(
 			program.Name,
 			program.Version,
 		),
-		Match: len(ticketIds) > 0 && IsValidTicketName(ticketIds...),
-		Execute: func() { ViewTickets(ticketIds, args) },
+		Match: IsValidTicketName(ticketIDs...),
+		Execute: func() { view_tickets(ticketIDs, args) },
 		Details: CommandDetails{
 			Name:			cmd_default,
 			Usage:			fmt.Sprintf("%s <PROJ-1337> <...>", program.Name),
@@ -66,43 +65,31 @@ func register_default(
 	};
 }
 
-/** Matches given name(s) against simple RegEx pattern to determine if it/they are valid Jira ticket names */
-func IsValidTicketName(names ...string) bool {
-	pattern := regexp.MustCompile(`\w+-\d+`)
-
-	for _, n := range names {
-		if !pattern.Match([]byte(n)) {
-			return false;
-		}
-	}
-
-	return true
-}
-
-func ViewTickets(ticketIds []string, args []string) {
-	if len(ticketIds) < 1 {
+func view_tickets(ticketIDs []string, args []string) {
+	if len(ticketIDs) < 1 {
 		fmt.Println("No tickets given", args)
-	}
-
-	if len(ticketIds) == 1 {
-		ticket, getTicketErr := getTicket(ticketIds[0])
-
-		if getTicketErr != nil {
-			log.Fatal("Could not get ticket ", ticketIds[0], " ", getTicketErr.Error())
-		}
-
-		Render(ticket, args)
 		return
 	}
 
-	ch := make(chan *Ticket, len(ticketIds))
+	if len(ticketIDs) == 1 {
+		ticket, get_ticket_err := get_ticket(ticketIDs[0])
+
+		if get_ticket_err != nil {
+			log.Fatal("Could not get ticket ", ticketIDs[0], " ", get_ticket_err.Error())
+		}
+
+		render_ticket(ticket, args)
+		return
+	}
+
+	ch := make(chan *Ticket, len(ticketIDs))
 	var wg sync.WaitGroup
 
-	for _, id := range ticketIds {
+	for _, id := range ticketIDs {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
-			ticket, err := getTicket(id)
+			ticket, err := get_ticket(id)
 
 			if err != nil {
 				fmt.Println("Could not get ticket", id, err.Error())
@@ -116,12 +103,12 @@ func ViewTickets(ticketIds []string, args []string) {
 	close(ch)
 
 	for ticket := range ch {
-		Render(ticket, args)
+		render_ticket(ticket, args)
 		fmt.Println("")
 	}
 }
 
-func Render(ticket *Ticket, args []string) {
+func render_ticket(ticket *Ticket, args []string) {
 	if ticket == nil {
 		fmt.Println("Could not view nil ticket")
 		return
@@ -135,7 +122,7 @@ func Render(ticket *Ticket, args []string) {
 			"%s\n%s\n%s\n%s",
 			formatted.Headline,
 			formatted.Link,
-			"  " + Ansii(Cyan, strings.Repeat("─", len(formatted.Link) - 2)),
+			formatted.DividerShort,
 			formatted.Comments,
 		)
 		return 

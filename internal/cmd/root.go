@@ -18,6 +18,7 @@ func BuildCommandRegistry(
 	registry = Commands{
 		register_help(args, details),
 		register_init(args, details),
+		register_comment(args, details),
 		register_default(args, details),
 	}
 
