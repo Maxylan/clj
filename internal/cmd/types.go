@@ -10,6 +10,12 @@ type ProgramDetails struct {
 	Version	string
 }
 
+type CommandArgChain struct {
+	TicketIDs 	[]string
+	Keywords	[]string
+	Args		[]string
+}
+
 type CommandDetails struct {
 	/** Name of this command */
 	Name		string
@@ -25,14 +31,14 @@ type Command struct {
 	/** Full-name (prettyprint) */
 	Name	string
 	/** Did this {Command} match command-line arguments? */
-	Match	bool
+	Match	func(CommandArgChain) bool
 	/** Executes this command */
-	Execute	func()
+	Execute	func(CommandArgChain)
 	/** Returns details about this command, used by "help" */
 	Details	CommandDetails
 }
 
-type Commands [4]Command
+type Commands [5]Command
 
 type Config struct {
     JiraURL string `json:"jira_url"`
@@ -75,6 +81,7 @@ type TicketStatus struct {
 }
 
 type TicketStatusCategory struct {
+	Id			int			`json:"id"`
 	Name		string		`json:"name"`
 }
 
@@ -84,8 +91,18 @@ type JiraMember struct {
 }
 
 type TicketIssueType struct {
+	Id			string		`json:"id"`
 	Name		string		`json:"name"`
+	Subtask		bool		`json:"subtask"`
 	Description	string		`json:"description"`
+}
+
+type ProjectIssueType struct {
+	Id			string		`json:"id"`
+	Name		string		`json:"name"`
+	Subtask		string		`json:"subtask"`
+	Description	string		`json:"description"`
+	Statuses	[]TicketStatus	`json:"statuses"`
 }
 
 type TicketProject struct {
@@ -142,3 +159,5 @@ type FormattedTicket struct {
 	Description		string
 	Comments		string
 }
+
+type IssueTypeStatuses map[string][]TicketStatus

@@ -3,25 +3,16 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"sync"
 	"slices"
 	"strings"
-	"sync"
 )
 
 const cmd_default = "View Ticket(s)"
 
 func register_default(
-	args	[]string,
 	program	ProgramDetails,
 ) Command {
-	var ticketIDs []string
-
-	if len(args) > 0 {
-		ticketIDs = Filter(args[1:], func(arg string, _ int) bool {
-			return arg[0] != '-'
-		})
-	}
-
 	return Command{
 		Name: fmt.Sprintf(
 			"%s (%s, %s)",
@@ -29,34 +20,34 @@ func register_default(
 			program.Name,
 			program.Version,
 		),
-		Match: IsValidTicketName(ticketIDs...),
-		Execute: func() { view_tickets(ticketIDs, args) },
+		Match: match_default,
+		Execute: view_tickets,
 		Details: CommandDetails{
 			Name:			cmd_default,
-			Usage:			fmt.Sprintf("%s <PROJ-1337> <...>", program.Name),
-			Description:	"\"Retrieves each given ticket, printing their title + description.\"",
+			Usage:			fmt.Sprintf("%s <Tickets...>", program.Name),
+			Description:	"Retrieves each given ticket, printing their title + description.",
 			Subcommands: []CommandDetails{
 				{
 					Name:			"Detailed view",
-					Usage:			fmt.Sprintf("%s <...> [-d|--detailed]", program.Name),
-					Description:	"\"Include as many details as possible\"",
+					Usage:			fmt.Sprintf("%s <Tickets...> [-d|--detailed]", program.Name),
+					Description:	"Include as many details as possible",
 					Subcommands: 	[]CommandDetails{},
 				},
 				{
 					Name:			"Include comments",
-					Usage:			fmt.Sprintf("%s <...> [-c|--comments]", program.Name),
-					Description:	"\"Render the whole comment section\"",
+					Usage:			fmt.Sprintf("%s <Tickets...> [-c|--comments]", program.Name),
+					Description:	"Render the whole comment section",
 					Subcommands: 	[]CommandDetails{},
 				},
 				{
 					Name:			"Only comments",
-					Usage:			fmt.Sprintf("%s <...> [-o|--only-comments]", program.Name),
-					Description:	"\"Render *only* the comment section\"",
+					Usage:			fmt.Sprintf("%s <Tickets...> [-o|--only-comments]", program.Name),
+					Description:	"Render *only* the comment section",
 					Subcommands: 	[]CommandDetails{},
 				},
 				/*{ // Not implemented
 					Name:			"Verbose",
-					Usage:			fmt.Sprintf("%s <...> [-v|--verbose]", program.Name),
+					Usage:			fmt.Sprintf("%s <Tickets...> [-v|--verbose]", program.Name),
 					Description:	"Give a more verbose output, useful for debugging",
 					Subcommands: 	[]CommandDetails{},
 				},*/
@@ -65,27 +56,31 @@ func register_default(
 	};
 }
 
-func view_tickets(ticketIDs []string, args []string) {
-	if len(ticketIDs) < 1 {
-		fmt.Println("No tickets given", args)
+func match_default(chain CommandArgChain) bool { 
+	return len(chain.Keywords) == 0 && len(chain.TicketIDs) > 0
+}
+
+func view_tickets(chain CommandArgChain) {
+	if len(chain.TicketIDs) < 1 {
+		fmt.Println("No tickets given", chain.Args)
 		return
 	}
 
-	if len(ticketIDs) == 1 {
-		ticket, get_ticket_err := get_ticket(ticketIDs[0])
+	if len(chain.TicketIDs) == 1 {
+		ticket, get_ticket_err := get_ticket(chain.TicketIDs[0])
 
 		if get_ticket_err != nil {
-			log.Fatal("Could not get ticket ", ticketIDs[0], " ", get_ticket_err.Error())
+			log.Fatal("Could not get ticket ", chain.TicketIDs[0], " ", get_ticket_err.Error())
 		}
 
-		render_ticket(ticket, args)
+		render_ticket(ticket, chain.Args)
 		return
 	}
 
-	ch := make(chan *Ticket, len(ticketIDs))
+	ch := make(chan *Ticket, len(chain.TicketIDs))
 	var wg sync.WaitGroup
 
-	for _, id := range ticketIDs {
+	for _, id := range chain.TicketIDs {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
@@ -103,7 +98,7 @@ func view_tickets(ticketIDs []string, args []string) {
 	close(ch)
 
 	for ticket := range ch {
-		render_ticket(ticket, args)
+		render_ticket(ticket, chain.Args)
 		fmt.Println("")
 	}
 }

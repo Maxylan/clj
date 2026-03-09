@@ -63,7 +63,7 @@ func get_ticket(ticketId string) (*Ticket, error) {
 		return nil, reqErr
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{ Timeout: 30 * time.Second }
 	resp, resErr := client.Do(req)
 	if resErr != nil {
 		return nil, resErr
@@ -80,6 +80,41 @@ func get_ticket(ticketId string) (*Ticket, error) {
 	unmarshalError := json.Unmarshal(body, parsed)
 
 	return parsed, unmarshalError
+}
+
+func get_statuses(projectId string) (*IssueTypeStatuses, error) {
+	req, reqErr := request("GET", "/rest/api/2/project/" + projectId + "/statuses", nil, nil)
+
+	if reqErr != nil {
+		return nil, reqErr
+	}
+
+	client := &http.Client{ Timeout: 30 * time.Second }
+	resp, resErr := client.Do(req)
+	if resErr != nil {
+		return nil, resErr
+	}
+
+	defer resp.Body.Close()
+
+	body, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, readErr
+	}
+
+	parsed := []ProjectIssueType{}
+	unmarshalError := json.Unmarshal(body, &parsed)
+
+	if unmarshalError != nil {
+		return nil, unmarshalError
+	}
+
+	out := IssueTypeStatuses{}
+	for _, issueType := range parsed {
+		out[issueType.Name] = issueType.Statuses
+	}
+
+	return &out, nil
 }
 
 func post_ticket_comment(ticketId string, comment NewComment) (bool, error) {

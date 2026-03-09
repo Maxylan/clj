@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -39,6 +40,17 @@ func Map[TIn any, TOut any](source []TIn, pred func(TIn, int) TOut) []TOut {
 	return out
 }
 
+/** Maps `source` {[]TIn}, returning a new slice of items w/ predicate `pred` applied {[]TOut} */
+func FlatMap[TIn any, TOut any](source []TIn, pred func(TIn, int) []TOut) []TOut {
+	var out []TOut
+
+	for i, e := range source {
+		out = append(out, pred(e, i)...)
+	}
+
+	return out
+}
+
 /** Maps `source` {[]TIn}, appending items w/ predicate `pred` applied to destination `dest` {[]TOut} */
 func AppendMap[TIn any, TOut any](source []TIn, dest *[]TOut, pred func(TIn, int) TOut) {
 	for i, e := range source {
@@ -57,6 +69,17 @@ func FilterMap[TIn any, TOut any](source []TIn, p1 func(TIn, int) bool, p2 func(
 	}
 
 	return out
+}
+
+/** Same as `slices.Index`, but takes a slice of `string` and compares w/ `strings.EqualFold` */
+func IndexEqualFold(source []string, needle string) int {
+	for i, v := range source {
+		if strings.EqualFold(v, needle) {
+			return i
+		}
+	}
+
+	return -1
 }
 
 const (
@@ -115,6 +138,52 @@ const (
 
 func Ansii(strArr ...string) string {
 	return strings.Join(strArr, "") + Reset;
+}
+
+func ParseArgs(args []string) []CommandArgChain {
+	cur := 0
+	setTickets := false
+	out := []CommandArgChain{
+		{
+			TicketIDs:	[]string{},
+			Keywords:	[]string{},
+			Args:		[]string{},
+		},
+	}
+
+	for _, arg := range args[1:] {
+		isValidTicketName := IsValidTicketName(arg)
+
+		switch {
+		case strings.EqualFold(arg, "and"):
+			cur = len(out) - 1
+			setTickets = false
+			out = append(out, CommandArgChain{
+				TicketIDs:	[]string{},
+				Keywords:	[]string{},
+				Args:		[]string{},
+			})
+		case arg[0] == '-':
+			out[cur].Args = append(out[cur].Args, arg)
+		case setTickets || isValidTicketName:
+			if !isValidTicketName {
+				fmt.Println(Ansii(
+					Red, "(!)", Reset, " ", Italic,
+					"Ticket ", Cyan, Underline, arg, NoUnderline,
+					NoColor, " potentially poorly formatted. ", Bold, "Skipped!",
+				))
+				break
+			}
+
+			out[cur].TicketIDs = append(out[cur].TicketIDs, arg)
+		case strings.EqualFold(arg, "on"):
+			setTickets = true
+		default:
+			out[cur].Keywords = append(out[cur].Keywords, arg)
+		}
+	}
+
+	return out
 }
 
 /** Matches given name(s) against simple RegEx pattern to determine if it/they are valid Jira ticket names */

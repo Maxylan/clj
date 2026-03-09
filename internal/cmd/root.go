@@ -1,26 +1,37 @@
 package cmd
 
-import "fmt"
-
 var registry Commands
 
+/**
+ * Register each defined command, passing details about the program like version & name.
+ * 
+ * Each registered command will provide..
+ *  - Details about itself, for help / documentation.
+ *  - Expose a `Match(..)` function returns if an arg-chain matches (should invoke) this command
+ *  - Expose a `Execute(..)` function to invoke this command
+ */
 func BuildCommandRegistry(
-	args []string,
-	details ProgramDetails,
+	details	ProgramDetails,
 ) Commands {
-	fmt.Println(
-		Ansii(Bold, details.Name),
-		details.Version,
-		args,
-	)
-	fmt.Println() // nl
+	SetConfigPath(details.Name)
 
-	registry = Commands{
-		register_help(args, details),
-		register_init(args, details),
-		register_comment(args, details),
-		register_default(args, details),
+    registry = Commands{
+		register_help(details),
+		register_init(details),
+		register_set(details),
+		register_comment(details),
+		register_default(details),
 	}
 
-    return registry
+	return registry
+}
+
+func CommandNotFound(message string) {
+	Help(
+		CommandArgChain{
+			TicketIDs: []string{},
+			Args: []string{ "--minimal" },
+		},
+		Ansii(Red, "(!)", NoColor, " ", message),
+	)
 }

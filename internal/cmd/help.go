@@ -9,7 +9,6 @@ import (
 const cmd_help = "Help"
 
 func register_help(
-	args	[]string,
 	program	ProgramDetails,
 ) Command {
 
@@ -20,38 +19,44 @@ func register_help(
 			program.Name,
 			program.Version,
 		),
-		Match: len(args) < 2 || strings.ToLower(args[1]) == "help",
-		Execute: func() { Help(args, "") },
+		Match: match_help,
+		Execute: func(chain CommandArgChain) { Help(chain, "") },
 		Details: CommandDetails{
 			Name:			cmd_help,
 			Usage:			fmt.Sprintf("%s help | alt. [-h|--help] after any command.", program.Name),
-			Description:	"\"Prints usage & detailed explanations of each subcommand of their accepted arguments\"",
+			Description:	"Prints usage & detailed explanations of each subcommand of their accepted arguments",
 			Subcommands: []CommandDetails{{
 				Name:			"Minimal",
 				Usage:			fmt.Sprintf("%s help minimal|[-m|--minimal]", program.Name),
-				Description:	"\"Omit lengthy descriptions, only printing command name + usage.\"",
+				Description:	"Omit lengthy descriptions, only printing command name + usage.",
 				Subcommands: 	[]CommandDetails{},
 			}},
 		},
 	};
 }
 
-func Help(args []string, msg string) {
+func match_help(chain CommandArgChain) bool { 
+	isHelp := len(chain.Keywords) > 0 && strings.EqualFold(chain.Keywords[0], "help")
+	isHelpArg := slices.Contains(chain.Args, "-h") || slices.Contains(chain.Args, "--help")
+	return isHelp || isHelpArg
+}
+
+func Help(chain CommandArgChain, msg string) {
 	if len(msg) > 0 {
 		fmt.Println(msg + "\n")
 	}
 
 	minimal :=
-		slices.Contains(args, "-m") ||
-		slices.Contains(args, "--minimal") ||
-		(len(args) > 2 && strings.EqualFold(args[2], "minimal"))
+		slices.Contains(chain.Args, "-m") ||
+		slices.Contains(chain.Args, "--minimal") ||
+		(len(chain.Keywords) > 1 && strings.EqualFold(chain.Keywords[1], "minimal"))
 
-	if slices.Contains(args, "-h") || slices.Contains(args, "--help") {
+	if slices.Contains(chain.Args, "-h") || slices.Contains(chain.Args, "--help") {
 		// If appended as argument (i.e -h|--help)
 		// ..for-each registered command *matching* given args, print help. 
 		matches := FilterMap(
 			registry[:],
-			func(cmd Command, _ int) bool { return cmd.Name != "Help" && cmd.Match },
+			func(cmd Command, _ int) bool { return cmd.Name != "Help" && cmd.Match(chain) },
 			func(cmd Command, _ int) CommandDetails { return cmd.Details },
 		)
 
@@ -101,7 +106,9 @@ func FormatDetails(
 			sb.WriteString(Ansii(
 				"├ ",
 				Dim,
+				"\"",
 				details.Description,
+				"\"",
 				NoDim,
 				nl,
 			))
@@ -128,7 +135,9 @@ func FormatDetails(
 			nl,
 			"╰ ",
 			Dim,
+			"\"",
 			details.Description,
+			"\"",
 			NoDim,
 		))
 	}

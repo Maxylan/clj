@@ -10,24 +10,8 @@ import (
 const cmd_comment = "Comment on Ticket(s)"
 
 func register_comment(
-	args	[]string,
 	program	ProgramDetails,
 ) Command {
-	var (
-		hasArgs		= len(args) > 3
-		lastArg		= args[len(args)-1]
-		isComment	= false
-		ticketIDs	[]string
-	)
-
-	if hasArgs {
-		isComment = strings.EqualFold(args[1], "c") || strings.EqualFold(args[1], "comment")
-		ticketIDs = Filter(args[2:], func(arg string, i int) bool {
-			// Prevents last arg from being counted as a ticket ID..
-			return (i != len(args) - 3) && arg[0] != '-'
-		})
-	}
-
 	return Command{
 		Name: fmt.Sprintf(
 			"%s (%s, %s)",
@@ -35,12 +19,12 @@ func register_comment(
 			program.Name,
 			program.Version,
 		),
-		Match: hasArgs && isComment && IsValidTicketName(ticketIDs...),
-		Execute: func() { comment_on_tickets(ticketIDs, NewComment{ Body: lastArg }, args) },
+		Match: match_comment,
+		Execute: func(chain CommandArgChain) { comment_on_tickets(chain) },
 		Details: CommandDetails{
 			Name:			cmd_comment,
-			Usage:			fmt.Sprintf("%s [c|comment] <PROJ-1337> <...> \"Lorem ipsum dolor..\"", program.Name),
-			Description:	"\"Creates a new comment on each given ticket, outputs their comment sections.\"",
+			Usage:			fmt.Sprintf("%s comment \"Lorem ipsum dolor..\" on <Tickets...>", program.Name),
+			Description:	"Creates a new comment on each given ticket. Outputs their comment sections.",
 			Subcommands: []CommandDetails{
 				/*{ // Not implemented
 					Name:			"Verbose",
@@ -53,25 +37,38 @@ func register_comment(
 	};
 }
 
-func comment_on_tickets(ticketIDs []string, comment NewComment, args []string) {
-	if len(ticketIDs) < 1 {
-		fmt.Println("No tickets given", args)
+func match_comment(chain CommandArgChain) bool {
+	if len(chain.Keywords) < 2 || len(chain.TicketIDs) == 0 {
+		return false
+	}
+
+	return strings.EqualFold(chain.Keywords[0], "c") || strings.EqualFold(chain.Keywords[0], "comment")
+}
+
+func comment_on_tickets(chain CommandArgChain) {
+	if len(chain.Keywords) < 2 {
+		log.Fatal("Insufficient num. of arguments provided to `comment_on_tickets`", chain)
+	}
+	if len(chain.TicketIDs) < 1 {
+		fmt.Println("No tickets given", chain.Args)
 		return
 	}
 
-	if len(ticketIDs) == 1 {
-		success, postCommentErr := post_ticket_comment(ticketIDs[0], comment)
+	comment := NewComment{ Body: chain.Keywords[1] }
+
+	if len(chain.TicketIDs) == 1 {
+		success, postCommentErr := post_ticket_comment(chain.TicketIDs[0], comment)
 
 		if !success || postCommentErr != nil {
-			log.Fatal(Ansii(Bold, Red, "(!)", NoBold, " Failed", Reset, " to posted comment on ticket ", Underline, Cyan, ticketIDs[0]), postCommentErr)
+			log.Fatal(Ansii(Bold, Red, "(!)", NoBold, " Failed", Reset, " to posted comment on ticket ", Underline, Cyan, chain.TicketIDs[0]), postCommentErr)
 		} else {
-			fmt.Println("» Successfully posted comment on ticket", Ansii(Underline, Cyan, ticketIDs[0]))
+			fmt.Println("» Successfully posted comment on ticket", Ansii(Underline, Cyan, chain.TicketIDs[0]))
 		}
 	} else {
-		ch := make(chan string, len(ticketIDs))
+		ch := make(chan string, len(chain.TicketIDs))
 		var wg sync.WaitGroup
 
-		for _, id := range ticketIDs {
+		for _, id := range chain.TicketIDs {
 			wg.Add(1)
 			go func(id string) {
 				defer wg.Done()
@@ -97,6 +94,8 @@ func comment_on_tickets(ticketIDs []string, comment NewComment, args []string) {
 		}
 	}
 
-	view_tickets(ticketIDs, []string{ "--only-comments" })
+	view_tickets(CommandArgChain{
+		TicketIDs:	chain.TicketIDs,
+		Args: 		[]string{ "--only-comments" },
+	})
 }
-
