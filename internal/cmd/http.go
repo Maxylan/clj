@@ -82,8 +82,8 @@ func get_ticket(ticketId string) (*Ticket, error) {
 	return parsed, unmarshalError
 }
 
-func get_project_issue_types(projectId string) (*ProjectIssueTypes, error) {
-	req, reqErr := request("GET", "/rest/api/2/project/" + projectId + "/statuses", nil, nil)
+func get_issue_transitions(ticketId string) (*TicketTransitions, error) {
+	req, reqErr := request("GET", "/rest/api/2/issue/" + ticketId + "/transitions", nil, nil)
 
 	if reqErr != nil {
 		return nil, reqErr
@@ -102,16 +102,16 @@ func get_project_issue_types(projectId string) (*ProjectIssueTypes, error) {
 		return nil, readErr
 	}
 
-	parsed := []JiraIssueType{}
+	parsed := JiraIssueTransitions{}
 	unmarshalError := json.Unmarshal(body, &parsed)
 
 	if unmarshalError != nil {
 		return nil, unmarshalError
 	}
 
-	out := &ProjectIssueTypes{
-		ProjectID:	projectId,
-		IssueTypes:	parsed,
+	out := &TicketTransitions{
+		TicketID:		ticketId,
+		Transitions:	parsed.Transitions,
 	}
 
 	return out, nil
@@ -147,15 +147,12 @@ func post_ticket_comment(ticketId string, comment NewComment) (bool, error) {
 	return body != nil, readErr
 }
 
-func put_ticket_status(ticketId string, comment NewComment) (bool, error) {
-	bodyData, marshalError := json.Marshal(comment)
-	if marshalError != nil {
-		return false, marshalError
-	}
+func post_ticket_transition(ticketId string, transitionId string) (bool, error) {
+	bodyData := []byte(`{"transition": {"id": "`+transitionId+`"}}`)
 
 	req, reqErr := request(
 		"POST",
-		"/rest/api/2/issue/" + ticketId + "/comment",
+		"/rest/api/2/issue/" + ticketId + "/transitions",
 		&Headers{
 			"Content-Type": "application/json",
 		},

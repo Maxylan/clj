@@ -72,7 +72,7 @@ func set_field_on_tickets(chain CommandArgChain) {
 		return
 	}
 
-	if slices.Contains(chain.Args, "-t") || slices.Contains(chain.Args, "--view-tickets") {
+	if slices.Contains(chain.Args, "-t") || slices.Contains(chain.Args, "--view-ticket") || slices.Contains(chain.Args, "--view-tickets") {
 		view_tickets(CommandArgChain{
 			TicketIDs:	chain.TicketIDs,
 		})
@@ -89,106 +89,108 @@ func set_status(chain CommandArgChain, newStatus string) []Ticket {
 		log.Fatal("Could not get tickets", chain)
 	}
 
-	projectIDs := Map(
+	ticketIDs := Map(
 		tickets,
 		func(ticket Ticket, _ int) string {
-			return ticket.Fields.Project.Id
+			return ticket.Key
 		},
 	)
 
 	// Includes statuses..
-	proj_issue_types := get_issue_types_for_projects(projectIDs)
+	transitions := get_transitions_for_tickets(ticketIDs)
 
 	for _, ticket := range tickets {
-		if len(ticket.Fields.Project.Id) == 0 {
-			fmt.Println(Ansii(Red, "(!)"), "Ticket", ticket.Key, "malformed, skipping..")
+		ticketTransitions, exists := transitions[ticket.Key]
+		transitionId := ""
+
+		if !exists || len(ticketTransitions) == 0 {
+			fmt.Println(ticketTransitions, transitions)
+			fmt.Printf(
+				"%s(!)%s Could not get available transitions %s%s(statuses)%s for ticket '%s%s%s'. %sSkipping..%s\n",
+				Red, Reset, Dim, Italic, Reset, Cyan, ticket.Key, Reset, Bold, Reset,
+			)
 			continue
 		}
 
-		var pickedStatus *TicketStatus
-		var available []TicketStatus
-
-		if issueTypes, exists := proj_issue_types[ticket.Fields.Project.Id]; exists {
-			for _, issueType := range issueTypes {
-				if issueType.Id == ticket.Fields.IssueType.Id {
-					available = issueType.Statuses
-					break
-				}
-			}
-		} else {
-			log.Fatal(
-				"Could not get project ",
-				ticket.Fields.Project.Id,
-				". This should not be possible! ",
-				ticket.Key,
-			)
-		}
-
-		if len(available) == 0 {
-			fmt.Println(Ansii(Red, "(!)"), "Could not determine available statuses for Ticket", Ansii(Cyan, ticket.Key), ", skipping..")
-			continue;
-		}
-
-		for _, status := range available {
-			if strings.EqualFold(status.Name, newStatus) || strings.EqualFold(status.Category.Name, newStatus) {
-				pickedStatus = &status
+		for _, t := range ticketTransitions {
+			if strings.EqualFold(t.Name, newStatus) || strings.EqualFold(t.Id, newStatus) || strings.EqualFold(t.Status.Name, newStatus) {
+				transitionId = t.Id
 				break;
 			}
 		}
 
-		if pickedStatus == nil {
+		if len(transitionId) == 0 {
+			options := Map(
+				ticketTransitions,
+				func(t IssueTransition, i int) [3]string {
+					return [3]string{ fmt.Sprintf("%d", i), t.Name, t.Description }
+				},
+			)
+
 			log.Fatalf(
-				"%s(!)%s Status %s is not a viable option for '%s%s%s%s' %s%s(Project '%s').\n    (Tip: Run `clj statuses <Tickets...>` to get available statuses)%s\n» %sAvailable Options:%s\n\n%v",
+				"%s(!)%s Status %s is not a viable transition for '%s%s%s%s'.\n    %s%s(Tip: Run `clj statuses <Tickets...>` to get available statuses)%s\n» %sAvailable Options:%s\n\n%v\n",
 				Red, Reset, newStatus,
 				Cyan, Underline, ticket.Key, Reset,
-				Dim, Italic, ticket.Fields.Project.Id, Reset,
-				Bold, Reset, available,
+				Dim, Italic, Reset,
+				Bold, Reset, options,
 			)
+		}
+
+		success, postErr := post_ticket_transition(ticket.Key, transitionId)
+		if !success || postErr != nil {
+			log.Fatalf(
+				"%s(!)%s Could not POST status transition %s for '%s%s%s%s'.\n» %sError:%s\n\n%v\n",
+				Red, Reset, newStatus,
+				Cyan, Underline, ticket.Key, Reset,
+				Bold, Reset, postErr,
+			)
+		} else {
+			fmt.Println("» Successfully updated status of ticket", Ansii(Underline, Cyan, ticket.Key))
 		}
 	}
 
 	return tickets
 }
 
-func get_issue_types_for_projects(projectIDs []string) ProjectsWithIssueTypesMap {
-	if len(projectIDs) < 1 {
-		log.Fatal("No Project IDs given", projectIDs)
+func get_transitions_for_tickets(ticketIDs []string) TicketTransitionsMap {
+	if len(ticketIDs) < 1 {
+		log.Fatal("No Ticket IDs given", ticketIDs)
 	}
 
-	if len(projectIDs) == 1 {
-		projectIssueTypes, get_statuses_err := get_project_issue_types(projectIDs[0])
+	if len(ticketIDs) == 1 {
+		transitions, get_transitions_err := get_issue_transitions(ticketIDs[0])
 
-		if get_statuses_err != nil {
-			log.Fatal("Could not get project '", projectIDs[0], "' statuses. ", get_statuses_err.Error())
+		if get_transitions_err != nil {
+			log.Fatal("Could not get ticket '", ticketIDs[0], "' transitions. ", get_transitions_err.Error())
 		}
 
-		return ProjectsWithIssueTypesMap{
-			projectIDs[0]: projectIssueTypes.IssueTypes,
+		return TicketTransitionsMap{
+			ticketIDs[0]: transitions.Transitions,
 		}
 	}
 
-	ch := make(chan *ProjectIssueTypes, len(projectIDs))
-	var project_statuses ProjectsWithIssueTypesMap
+	ch := make(chan *TicketTransitions, len(ticketIDs))
+	ticket_transitions := TicketTransitionsMap{}
 	var wg sync.WaitGroup
 
-	for _, projectId := range projectIDs {
-		if _, exists := project_statuses[projectId]; exists {
+	for _, ticketID := range ticketIDs {
+		if _, exists := ticket_transitions[ticketID]; exists {
 			continue
 		}
 
-		project_statuses[projectId] = []JiraIssueType{}
+		ticket_transitions[ticketID] = []IssueTransition{}
 		wg.Add(1)
 
-		go func(projectId string) {
+		go func(ticketID string) {
 			defer wg.Done()
-			projectIssueTypes, err := get_project_issue_types(projectId)
+			transitions, err := get_issue_transitions(ticketID)
 
 			if err != nil {
-				fmt.Println("Could not get Project", projectId, "Issue Types.", err.Error())
+				fmt.Println("Could not get Ticket", ticketID, "Transitions.", err.Error())
 			}
 
-			ch <- projectIssueTypes
-		}(projectId)
+			ch <- transitions
+		}(ticketID)
 	}
 
 	wg.Wait()
@@ -196,9 +198,9 @@ func get_issue_types_for_projects(projectIDs []string) ProjectsWithIssueTypesMap
 
 	for result := range ch {
 		if result != nil {
-			project_statuses[result.ProjectID] = result.IssueTypes
+			ticket_transitions[result.TicketID] = result.Transitions
 		}
 	}
 
-	return project_statuses
+	return ticket_transitions
 }

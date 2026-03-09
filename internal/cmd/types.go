@@ -161,9 +161,21 @@ type FormattedTicket struct {
 	Comments		string
 }
 
-type ProjectIssueTypes struct {
-	ProjectID	string
-	IssueTypes	[]JiraIssueType
+type TicketTransitions struct {
+	TicketID		string
+	Transitions		[]IssueTransition
 }
 
-type ProjectsWithIssueTypesMap map[string][]JiraIssueType
+type JiraIssueTransitions struct {
+	Transitions		[]IssueTransition `json:"transitions"`
+}
+
+type IssueTransition struct {
+	Id				string			`json:"id"`
+	Name			string			`json:"name"`
+	Description		string			`json:"description"`
+	OpsbarSequence	int				`json:"opsbarSequence"`
+	Status			TicketStatus	`json:"to"`
+}
+
+type TicketTransitionsMap map[string][]IssueTransition
