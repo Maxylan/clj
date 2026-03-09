@@ -82,7 +82,7 @@ func get_ticket(ticketId string) (*Ticket, error) {
 	return parsed, unmarshalError
 }
 
-func get_statuses(projectId string) (*IssueTypeStatuses, error) {
+func get_project_issue_types(projectId string) (*ProjectIssueTypes, error) {
 	req, reqErr := request("GET", "/rest/api/2/project/" + projectId + "/statuses", nil, nil)
 
 	if reqErr != nil {
@@ -102,22 +102,52 @@ func get_statuses(projectId string) (*IssueTypeStatuses, error) {
 		return nil, readErr
 	}
 
-	parsed := []ProjectIssueType{}
+	parsed := []JiraIssueType{}
 	unmarshalError := json.Unmarshal(body, &parsed)
 
 	if unmarshalError != nil {
 		return nil, unmarshalError
 	}
 
-	out := IssueTypeStatuses{}
-	for _, issueType := range parsed {
-		out[issueType.Name] = issueType.Statuses
+	out := &ProjectIssueTypes{
+		ProjectID:	projectId,
+		IssueTypes:	parsed,
 	}
 
-	return &out, nil
+	return out, nil
 }
 
 func post_ticket_comment(ticketId string, comment NewComment) (bool, error) {
+	bodyData, marshalError := json.Marshal(comment)
+	if marshalError != nil {
+		return false, marshalError
+	}
+
+	req, reqErr := request(
+		"POST",
+		"/rest/api/2/issue/" + ticketId + "/comment",
+		&Headers{
+			"Content-Type": "application/json",
+		},
+		&bodyData,
+	)
+	if reqErr != nil {
+		return false, reqErr
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, resErr := client.Do(req)
+	if resErr != nil {
+		return false, resErr
+	}
+
+	defer resp.Body.Close()
+
+	body, readErr := io.ReadAll(resp.Body)
+	return body != nil, readErr
+}
+
+func put_ticket_status(ticketId string, comment NewComment) (bool, error) {
 	bodyData, marshalError := json.Marshal(comment)
 	if marshalError != nil {
 		return false, marshalError

@@ -66,21 +66,36 @@ func view_tickets(chain CommandArgChain) {
 		return
 	}
 
-	if len(chain.TicketIDs) == 1 {
-		ticket, get_ticket_err := get_ticket(chain.TicketIDs[0])
+	tickets := get_tickets(chain.TicketIDs)
 
-		if get_ticket_err != nil {
-			log.Fatal("Could not get ticket ", chain.TicketIDs[0], " ", get_ticket_err.Error())
-		}
+	for _, ticket := range tickets {
+		render_ticket(&ticket, chain.Args)
+		fmt.Println("")
+	}
+}
 
-		render_ticket(ticket, chain.Args)
-		return
+func get_tickets(ticketIDs []string) []Ticket {
+	if len(ticketIDs) < 1 {
+		log.Fatal("No tickets given", ticketIDs)
 	}
 
-	ch := make(chan *Ticket, len(chain.TicketIDs))
-	var wg sync.WaitGroup
+	if len(ticketIDs) == 1 {
+		ticket, get_ticket_err := get_ticket(ticketIDs[0])
 
-	for _, id := range chain.TicketIDs {
+		if get_ticket_err != nil {
+			log.Fatal("Could not get ticket ", ticketIDs[0], " ", get_ticket_err.Error())
+		}
+
+		return []Ticket{
+			*ticket,
+		}
+	}
+
+	ch := make(chan *Ticket, len(ticketIDs))
+	var wg sync.WaitGroup
+	var tickets []Ticket
+
+	for _, id := range ticketIDs {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
@@ -98,9 +113,12 @@ func view_tickets(chain CommandArgChain) {
 	close(ch)
 
 	for ticket := range ch {
-		render_ticket(ticket, chain.Args)
-		fmt.Println("")
+		if ticket != nil {
+			tickets = append(tickets, *ticket)
+		}
 	}
+
+	return tickets
 }
 
 func render_ticket(ticket *Ticket, args []string) {

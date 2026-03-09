@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"sync"
 	"slices"
 	"strings"
 )
@@ -78,6 +79,126 @@ func set_field_on_tickets(chain CommandArgChain) {
 	}
 }
 
-func set_status(chain CommandArgChain, status string) {
-	fmt.Println(status)
+func set_status(chain CommandArgChain, newStatus string) []Ticket {
+	if len(chain.TicketIDs) < 1 {
+		log.Fatal("No tickets given", chain)
+	}
+
+	tickets := get_tickets(chain.TicketIDs)
+	if len(tickets) < 1 {
+		log.Fatal("Could not get tickets", chain)
+	}
+
+	projectIDs := Map(
+		tickets,
+		func(ticket Ticket, _ int) string {
+			return ticket.Fields.Project.Id
+		},
+	)
+
+	// Includes statuses..
+	proj_issue_types := get_issue_types_for_projects(projectIDs)
+
+	for _, ticket := range tickets {
+		if len(ticket.Fields.Project.Id) == 0 {
+			fmt.Println(Ansii(Red, "(!)"), "Ticket", ticket.Key, "malformed, skipping..")
+			continue
+		}
+
+		var pickedStatus *TicketStatus
+		var available []TicketStatus
+
+		if issueTypes, exists := proj_issue_types[ticket.Fields.Project.Id]; exists {
+			for _, issueType := range issueTypes {
+				if issueType.Id == ticket.Fields.IssueType.Id {
+					available = issueType.Statuses
+					break
+				}
+			}
+		} else {
+			log.Fatal(
+				"Could not get project ",
+				ticket.Fields.Project.Id,
+				". This should not be possible! ",
+				ticket.Key,
+			)
+		}
+
+		if len(available) == 0 {
+			fmt.Println(Ansii(Red, "(!)"), "Could not determine available statuses for Ticket", Ansii(Cyan, ticket.Key), ", skipping..")
+			continue;
+		}
+
+		for _, status := range available {
+			if strings.EqualFold(status.Name, newStatus) || strings.EqualFold(status.Category.Name, newStatus) {
+				pickedStatus = &status
+				break;
+			}
+		}
+
+		if pickedStatus == nil {
+			log.Fatalf(
+				"%s(!)%s Status %s is not a viable option for '%s%s%s%s' %s%s(Project '%s').\n    (Tip: Run `clj statuses <Tickets...>` to get available statuses)%s\n» %sAvailable Options:%s\n\n%v",
+				Red, Reset, newStatus,
+				Cyan, Underline, ticket.Key, Reset,
+				Dim, Italic, ticket.Fields.Project.Id, Reset,
+				Bold, Reset, available,
+			)
+		}
+	}
+
+	return tickets
+}
+
+func get_issue_types_for_projects(projectIDs []string) ProjectsWithIssueTypesMap {
+	if len(projectIDs) < 1 {
+		log.Fatal("No Project IDs given", projectIDs)
+	}
+
+	if len(projectIDs) == 1 {
+		projectIssueTypes, get_statuses_err := get_project_issue_types(projectIDs[0])
+
+		if get_statuses_err != nil {
+			log.Fatal("Could not get project '", projectIDs[0], "' statuses. ", get_statuses_err.Error())
+		}
+
+		return ProjectsWithIssueTypesMap{
+			projectIDs[0]: projectIssueTypes.IssueTypes,
+		}
+	}
+
+	ch := make(chan *ProjectIssueTypes, len(projectIDs))
+	var project_statuses ProjectsWithIssueTypesMap
+	var wg sync.WaitGroup
+
+	for _, projectId := range projectIDs {
+		if _, exists := project_statuses[projectId]; exists {
+			continue
+		}
+
+		project_statuses[projectId] = []JiraIssueType{}
+		wg.Add(1)
+
+		go func(projectId string) {
+			defer wg.Done()
+			projectIssueTypes, err := get_project_issue_types(projectId)
+
+			if err != nil {
+				fmt.Println("Could not get Project", projectId, "Issue Types.", err.Error())
+			}
+
+			ch <- projectIssueTypes
+		}(projectId)
+	}
+
+	wg.Wait()
+	close(ch)
+
+	for result := range ch {
+		if result != nil {
+			project_statuses[result.ProjectID] = result.IssueTypes
+		}
+	}
+
+	return project_statuses
 }

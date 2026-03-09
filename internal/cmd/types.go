@@ -62,7 +62,7 @@ type TicketFields struct {
 	Reporter	JiraMember		`json:"reporter"`
 	Assignee	JiraMember		`json:"assignee"`
 	IssueType	TicketIssueType	`json:"issuetype"`
-	Project		TicketProject	`json:"project"`
+	Project		JiraProject		`json:"project"`
 	Summary		string			`json:"summary"`
 	Description	string			`json:"description"`
 	Comment		TicketComments	`json:"comment"`
@@ -97,7 +97,7 @@ type TicketIssueType struct {
 	Description	string		`json:"description"`
 }
 
-type ProjectIssueType struct {
+type JiraIssueType struct {
 	Id			string		`json:"id"`
 	Name		string		`json:"name"`
 	Subtask		string		`json:"subtask"`
@@ -105,7 +105,8 @@ type ProjectIssueType struct {
 	Statuses	[]TicketStatus	`json:"statuses"`
 }
 
-type TicketProject struct {
+type JiraProject struct {
+	Id			string		`json:"id"`
 	Key			string		`json:"key"`
 	Name		string		`json:"name"`
 }
@@ -160,4 +161,9 @@ type FormattedTicket struct {
 	Comments		string
 }
 
-type IssueTypeStatuses map[string][]TicketStatus
+type ProjectIssueTypes struct {
+	ProjectID	string
+	IssueTypes	[]JiraIssueType
+}
+
+type ProjectsWithIssueTypesMap map[string][]JiraIssueType
