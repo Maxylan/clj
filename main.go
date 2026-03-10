@@ -28,7 +28,7 @@ func main() {
 	// Parses `os.Args` to into argument "chains".
 	// Each chain represents its own operation / command, w/ its own list of Ticket IDs.
 	// Chains are separated by the keyword "and".
-	argChains := cmd.ParseArgs(os.Args)
+	argChains := cmd.ParseArgs(os.Args, verbose)
 
 	for i, chain := range argChains {
 		var selected *cmd.Command // Pick first match..

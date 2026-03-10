@@ -36,6 +36,10 @@ func register_help(
 }
 
 func match_help(chain CommandArgChain) bool { 
+	if len(chain.Keywords) == 0 && len(chain.Args) == 0 && len(chain.TicketIDs) == 0 {
+		return true
+	}
+
 	isHelp := len(chain.Keywords) > 0 && strings.EqualFold(chain.Keywords[0], "help")
 	isHelpArg := slices.Contains(chain.Args, "-h") || slices.Contains(chain.Args, "--help")
 	return isHelp || isHelpArg

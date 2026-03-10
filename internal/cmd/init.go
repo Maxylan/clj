@@ -55,7 +55,7 @@ func Setup(chain CommandArgChain) {
         log.Fatal(readError)
     }
 
-	config.JiraURL = line
+	config.JiraURL = line[:len(line) - 2] // gets rid of '\n' delim..
 
 	question = Ansii("» Enter your ", Underline, "\"PAT\"")
 	question += Ansii(" ", Dim, Italic, "(Personal Access Token)")
@@ -72,7 +72,7 @@ func Setup(chain CommandArgChain) {
         log.Fatal(readError)
     }
 
-	config.Token = line
+	config.Token = line[:len(line) - 2]
 
     if saveError := SaveConfig(config); saveError != nil {
         log.Fatal("Failed to save configuration. ", saveError.Error())

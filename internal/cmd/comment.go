@@ -3,8 +3,9 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"strings"
 	"sync"
+	"slices"
+	"strings"
 )
 
 const cmd_comment = "Comment on Ticket(s)"
@@ -26,6 +27,12 @@ func register_comment(
 			Usage:			fmt.Sprintf("%s comment \"Lorem ipsum dolor..\" on <Tickets...>", program.Name),
 			Description:	"Creates a new comment on each given ticket. Outputs their comment sections.",
 			Subcommands: []CommandDetails{
+				{
+					Name:			"Oldest First",
+					Usage:			fmt.Sprintf("%s <...> [--oldest-first]", program.Name),
+					Description:	"Change default sort-order to show the oldest comments first.",
+					Subcommands: 	[]CommandDetails{},
+				},
 				/*{ // Not implemented
 					Name:			"Verbose",
 					Usage:			fmt.Sprintf("%s <...> [-v|--verbose]", program.Name),
@@ -54,7 +61,9 @@ func comment_on_tickets(chain CommandArgChain) {
 		return
 	}
 
-	comment := NewComment{ Body: chain.Keywords[1] }
+	comment := NewComment{
+		Body: MarshalJiraMarkdown(chain.Keywords[1]),
+	}
 
 	if len(chain.TicketIDs) == 1 {
 		success, postCommentErr := post_ticket_comment(chain.TicketIDs[0], comment)
@@ -94,8 +103,14 @@ func comment_on_tickets(chain CommandArgChain) {
 		}
 	}
 
+	viewTicketArgs := []string{ "--only-comments" }
+
+	if slices.Contains(chain.Args, "--oldest-first") {
+		viewTicketArgs = append(viewTicketArgs, "--oldest-first")
+	}
+
 	view_tickets(CommandArgChain{
 		TicketIDs:	chain.TicketIDs,
-		Args: 		[]string{ "--only-comments" },
+		Args: 		viewTicketArgs,
 	})
 }

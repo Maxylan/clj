@@ -25,7 +25,7 @@ func register_default(
 		Details: CommandDetails{
 			Name:			cmd_default,
 			Usage:			fmt.Sprintf("%s <Tickets...>", program.Name),
-			Description:	"Retrieves each given ticket, printing their title + description.",
+			Description:	"Retrieves each given ticket, printing formats and prints each one to the console.",
 			Subcommands: []CommandDetails{
 				{
 					Name:			"Detailed view",
@@ -43,6 +43,12 @@ func register_default(
 					Name:			"Only comments",
 					Usage:			fmt.Sprintf("%s <Tickets...> [-o|--only-comments]", program.Name),
 					Description:	"Render *only* the comment section",
+					Subcommands: 	[]CommandDetails{},
+				},
+				{
+					Name:			"Oldest First",
+					Usage:			fmt.Sprintf("%s <Tickets...> [--oldest-first]", program.Name),
+					Description:	"Change default sort-order to show the oldest comments first. Assumes [-c|-o]",
 					Subcommands: 	[]CommandDetails{},
 				},
 				/*{ // Not implemented
@@ -127,7 +133,10 @@ func render_ticket(ticket *Ticket, args []string) {
 		return
 	}
 
-	formatted := FormatTicket(*ticket)
+	formatted := FormatTicket(
+		*ticket,
+		!slices.Contains(args, "--oldest-first"),
+	)
 
 	// [-o|--only-comments] - Render only comments
 	if slices.Contains(args, "-o") || slices.Contains(args, "--only-comments") {

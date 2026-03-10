@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -24,22 +25,45 @@ func FixAnsiiOverlap(input string, codes []string, insert string) string {
 	return str
 }
 
-/** ParseJiraMarkdown converts Jira wiki markup to ANSI-formatted terminal output. */
-func ParseJiraMarkdown(input string) string {
+/**
+ * `MarshalJiraMarkdown(..)` converts *some* supported text-input to Jira wiki markup output.
+ *
+ * *Bold* and _Italic_ remains untouched, should work as-is.
+ *
+ * See `MarshalingRegexPatterns` for a comprehensive list of supported formattings.  
+ */
+func MarshalJiraMarkdown(input string) string {
+	patterns := &patterns.Marshaling
+	s := input
+
+	// Mono
+	s = patterns.Mono.ReplaceAllString(s, "{{{}$1{}}}")
+
+	// Mentions
+	s = patterns.Mention.ReplaceAllString(s, "[~$1]")
+
+	return s
+}
+
+/**
+ * `UnmarshalJiraMarkdown(..)` converts Jira wiki markup to ANSI-formatted terminal output.
+ */
+func UnmarshalJiraMarkdown(input string) string {
+	patterns := &patterns.Unmarshaling
 	s := input
 
 	// Bold (before italic, to avoid * conflicts)
-	s = reBold.ReplaceAllString(s, Bold+"$1"+NoBold)
+	s = patterns.Bold.ReplaceAllString(s, Bold+"$1"+NoBold)
 
 	// Italic
-	s = reItalic.ReplaceAllString(s, Italic+"$1"+NoItalic)
+	s = patterns.Italic.ReplaceAllString(s, Italic+"$1"+NoItalic)
 
 	// Shorten the string by removing unecessary amounts of newlines
-	s = reShorten.ReplaceAllString(s, "$1")
+	s = patterns.Shorten.ReplaceAllString(s, "$1")
 
 	// Quotes
-	s = reQuote.ReplaceAllStringFunc(s, func(match string) string {
-		inner := reQuote.FindStringSubmatch(match)[1]
+	s = patterns.Quote.ReplaceAllStringFunc(s, func(match string) string {
+		inner := patterns.Quote.FindStringSubmatch(match)[1]
 		inner = strings.TrimSpace(inner)
 		inner = FixAnsiiOverlap(inner, []string{ NoDim, Reset }, Dim);
 
@@ -47,7 +71,7 @@ func ParseJiraMarkdown(input string) string {
 	})
 
 	// Headlines h1-h5 → Bold
-	for _, re := range []*regexp.Regexp{reH1, reH2, reH3, reH4, reH5} {
+	for _, re := range []*regexp.Regexp{patterns.H1, patterns.H2, patterns.H3, patterns.H4, patterns.H5} {
 		s = re.ReplaceAllStringFunc(s, func(match string) string {
 			inner := re.FindStringSubmatch(match)[1]
 			inner = FixAnsiiOverlap(inner, []string{ NoBold, Reset }, Bold);
@@ -57,30 +81,33 @@ func ParseJiraMarkdown(input string) string {
 	}
 
 	// h6 → Italic
-	s = reH6.ReplaceAllStringFunc(s, func(match string) string {
-		inner := reH6.FindStringSubmatch(match)[1]
+	s = patterns.H6.ReplaceAllStringFunc(s, func(match string) string {
+		inner := patterns.H6.FindStringSubmatch(match)[1]
 		inner = FixAnsiiOverlap(inner, []string{ NoItalic, Reset }, Italic);
 		return Italic + inner + NoItalic
 	})
 
 	// Mono
-	s = reMono.ReplaceAllString(s, Red+"$1"+NoColor)
+	s = patterns.Mono.ReplaceAllString(s, Red+"$1"+NoColor)
 
 	// Nested bullets (** and deeper) before top-level
-	s = reBulletNested.ReplaceAllStringFunc(s, func(match string) string {
-		groups := reBulletNested.FindStringSubmatch(match)
+	s = patterns.BulletNested.ReplaceAllStringFunc(s, func(match string) string {
+		groups := patterns.BulletNested.FindStringSubmatch(match)
 		depth := len(groups[1]) // number of * characters
 		indent := strings.Repeat("  ", depth)
 		return indent + "•" + " " + groups[2]
 	})
 
 	// Top-level bullets
-	s = reBulletTop.ReplaceAllString(s, "  • $1")
+	s = patterns.BulletTop.ReplaceAllString(s, "  • $1")
+
+	// Mentions
+	s = patterns.Mention.ReplaceAllString(s, "@$1")
 
 	return s
 }
 
-func FormatTicket(ticket Ticket) FormattedTicket {
+func FormatTicket(ticket Ticket, recentCommentsFirst bool) FormattedTicket {
 	config, err := GetConfig()
 	if err != nil {
 		log.Fatal("Could not load user configuration", err)
@@ -202,8 +229,8 @@ func FormatTicket(ticket Ticket) FormattedTicket {
 		),
 		Divider: 		"  ",
 		DividerShort: 	"  ",
-		Description:	ParseJiraMarkdown(ticket.Fields.Description),
-		Comments:		FormatTicketComments(ticket.Fields.Comment),
+		Description:	UnmarshalJiraMarkdown(ticket.Fields.Description),
+		Comments:		FormatTicketComments(ticket.Fields.Comment, recentCommentsFirst),
 	}
 
 	out.Divider += strings.Repeat(
@@ -231,9 +258,13 @@ func FormatTicket(ticket Ticket) FormattedTicket {
 	return out
 }
 
-func FormatTicketComments(commentSection TicketComments) string {
+func FormatTicketComments(commentSection TicketComments, recentFirst bool) string {
 	if commentSection.Total == 0 || len(commentSection.Comments) == 0 {
 		return ""
+	}
+
+	if recentFirst {
+		slices.Reverse(commentSection.Comments)
 	}
 
 	comments := Map(commentSection.Comments, func(comment JiraComment, i int) string {
@@ -245,7 +276,7 @@ func FormatTicketComments(commentSection TicketComments) string {
 				comment.Created,
 				comment.Updated,
 				Reset,
-				ParseJiraMarkdown(comment.Body),
+				UnmarshalJiraMarkdown(comment.Body),
 			)
 		}
 		return fmt.Sprintf(
@@ -257,7 +288,7 @@ func FormatTicketComments(commentSection TicketComments) string {
 			comment.Created,
 			comment.Updated,
 			Reset,
-			ParseJiraMarkdown(comment.Body),
+			UnmarshalJiraMarkdown(comment.Body),
 		)
 	})
 

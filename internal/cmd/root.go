@@ -1,5 +1,10 @@
 package cmd
 
+import (
+	"fmt"
+	"strings"
+)
+
 var registry Commands
 
 /**
@@ -34,4 +39,70 @@ func CommandNotFound(message string) {
 		},
 		Ansii(Red, "(!)", NoColor, " ", message),
 	)
+}
+
+/**
+ * Parses slice of strings (like `os.Args`) into "chains" of arguments,
+ * each "chain" representing a single operation.
+ *
+ * "Arguments" are sorted into buckets of..
+ *  - Arguments		(ex. --only-comments)
+ *  - Ticket IDs	(ex. PROJ-1337)
+ *  - Keywords		(..rest)
+ *  ..in the order they're given in the terminal.
+ *
+ *  Note: '-v|--verbose' argument is ignored. It's expected that the caller
+ *  checks if its present and passes the boolean result parameter `verbose`
+ */
+func ParseArgs(args []string, verbose bool) []CommandArgChain {
+	cur := 0
+	setTickets := false
+	out := []CommandArgChain{
+		{
+			TicketIDs:	[]string{},
+			Keywords:	[]string{},
+			Args:		[]string{},
+		},
+	}
+
+	if verbose {
+		out[0].Args = append(out[0].Args, "--verbose")
+	}
+
+	for _, arg := range args[1:] {
+		isValidTicketName := IsValidTicketName(arg)
+
+		switch {
+		case strings.EqualFold(arg, "and"):
+			cur++
+			setTickets = false
+			out = append(out, CommandArgChain{
+				TicketIDs:	[]string{},
+				Keywords:	[]string{},
+				Args:		[]string{},
+			})
+			if verbose {
+				out[cur].Args = append(out[cur].Args, "--verbose")
+			}
+		case arg[0] == '-' && arg != "-v" && arg != "--verbose":
+			out[cur].Args = append(out[cur].Args, arg)
+		case setTickets || isValidTicketName:
+			if !isValidTicketName {
+				fmt.Println(Ansii(
+					Red, "(!)", Reset, " ", Italic,
+					"Ticket ", Cyan, Underline, arg, NoUnderline,
+					NoColor, " potentially poorly formatted. ", Bold, "Skipped!",
+				))
+				break
+			}
+
+			out[cur].TicketIDs = append(out[cur].TicketIDs, arg)
+		case strings.EqualFold(arg, "on"):
+			setTickets = true
+		default:
+			out[cur].Keywords = append(out[cur].Keywords, arg)
+		}
+	}
+
+	return out
 }
