@@ -34,7 +34,10 @@ func main() {
 		var selected *cmd.Command // Pick first match..
 
 		if verbose {
-			fmt.Printf("%s[%d] %v%s\n\n", cmd.Dim, i, chain, cmd.Reset)
+			fmt.Printf(
+				"%s[%d] Keywords: %v, Tickets: %v, Arguments: %s%s\n\n",
+				cmd.Dim, i, chain.Keywords, chain.TicketIDs, chain.Args, cmd.Reset,
+			)
 		}
 
 		for _, cmd := range registry {

@@ -294,3 +294,17 @@ func FormatTicketComments(commentSection TicketComments, recentFirst bool) strin
 
 	return "» Comments:\n" + strings.Join(comments, "\n") + "\n"
 }
+
+func FormatTransition(transition IssueTransition, detailed bool) string {
+	out := fmt.Sprintf("  • %s\t%s#%s%s", transition.Name, Dim, transition.Id, Italic)
+
+	if detailed && len(transition.Status.Category.Name) > 0 {
+		out += fmt.Sprintf("\tCategory \"%s\"", transition.Status.Category.Name)
+	}
+
+	if len(transition.Description) > 0 {
+		out += fmt.Sprintf("\t(%s)", transition.Description)
+	}
+
+	return out + Reset
+}

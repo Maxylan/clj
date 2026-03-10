@@ -36,7 +36,7 @@ $ clj
 
 
 » Init (initial setup / configuration)
-├ clj init
+├ clj [init|setup]
 ╰ "Performs initial setup / configuration. Can be re-run later to reconfigure this utility."
 
 » Set some field(s) on Ticket(s)
@@ -44,11 +44,20 @@ $ clj
 ├ "Update some field on ticket(s), see subcommands. Ex. `clj set status "Done" on PROJ-1337`"
 ╰ Subcommands:
         • Field: status
-        ├ clj set status <Value> on <...>
-        ╰ "Set 'status' field on ticket(s). Statuses defined in a project's workflow, see `clj statuses <PROJ-1337>`"
+        ├ clj set [status|transition] <Value> on <...>
+        ╰ "Set 'status' / 'transition' on ticket(s). See `stat` for available transitions. Ex. `clj stat <PROJ-1337>`"
         • View Updated Tickets
         ├ clj set <...> on <...> [-t|--view-tickets]
         ╰ "Print updated ticket(s)."
+
+
+» Available Ticket Transitions (statuses)
+├ clj [stat|statuses|transitions] on <Tickets...>
+├ "Retrieves information about each available transition (status), for each given ticket."
+╰ Subcommands:
+        • Detailed view
+        ├ clj <...> [-d|--detailed]
+        ╰ "Include as many details as possible"
 
 
 » Comment on Ticket(s)

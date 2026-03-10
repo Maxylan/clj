@@ -24,6 +24,7 @@ func BuildCommandRegistry(
 		register_help(details),
 		register_init(details),
 		register_set(details),
+		register_transitions(details),
 		register_comment(details),
 		register_default(details),
 	}
@@ -84,8 +85,10 @@ func ParseArgs(args []string, verbose bool) []CommandArgChain {
 			if verbose {
 				out[cur].Args = append(out[cur].Args, "--verbose")
 			}
-		case arg[0] == '-' && arg != "-v" && arg != "--verbose":
-			out[cur].Args = append(out[cur].Args, arg)
+		case arg[0] == '-':
+			if arg != "-v" && arg != "--verbose" {
+				out[cur].Args = append(out[cur].Args, arg)
+			}
 		case setTickets || isValidTicketName:
 			if !isValidTicketName {
 				fmt.Println(Ansii(

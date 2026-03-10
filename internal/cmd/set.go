@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"sync"
 	"slices"
 	"strings"
 )
@@ -29,8 +28,8 @@ func register_set(
 			Subcommands: []CommandDetails{
 				{
 					Name:			"Field: status",
-					Usage:			fmt.Sprintf("%s set status <Value> on <...>", program.Name),
-					Description:	"Set 'status' field on ticket(s). Statuses defined in a project's workflow, see `clj statuses <PROJ-1337>`",
+					Usage:			fmt.Sprintf("%s set [status|transition] <Value> on <...>", program.Name),
+					Description:	"Set 'status' / 'transition' on ticket(s). See `stat` for available transitions. Ex. `clj stat <PROJ-1337>`",
 					Subcommands: 	[]CommandDetails{},
 				},
 				{
@@ -64,7 +63,7 @@ func set_field_on_tickets(chain CommandArgChain) {
 	}
 
 	switch {
-	case strings.EqualFold(chain.Keywords[1], "status"):
+	case strings.EqualFold(chain.Keywords[1], "status") || strings.EqualFold(chain.Keywords[1], "transition"):
 		set_status(chain, chain.Keywords[2])
 	default:
 		chain.Args = append(chain.Args, "--help")
@@ -122,17 +121,17 @@ func set_status(chain CommandArgChain, newStatus string) []Ticket {
 		if len(transitionId) == 0 {
 			options := Map(
 				ticketTransitions,
-				func(t IssueTransition, i int) [3]string {
-					return [3]string{ fmt.Sprintf("%d", i), t.Name, t.Description }
+				func(t IssueTransition, _ int) string {
+					return FormatTransition(t, false)
 				},
 			)
 
 			log.Fatalf(
-				"%s(!)%s Status %s is not a viable transition for '%s%s%s%s'.\n    %s%s(Tip: Run `clj statuses <Tickets...>` to get available statuses)%s\n» %sAvailable Options:%s\n\n%v\n",
+				"\n%s(!)%s Status \"%s\" is not a viable transition for '%s%s%s%s'.\n    %s%s(Tip: Run `clj stat <Tickets...>` beforehand to view available transitions)%s\n  » %sAvailable Transitions:%s\n%s\n",
 				Red, Reset, newStatus,
 				Cyan, Underline, ticket.Key, Reset,
 				Dim, Italic, Reset,
-				Bold, Reset, options,
+				Bold, Reset, strings.Join(options, "\n"),
 			)
 		}
 
@@ -150,57 +149,4 @@ func set_status(chain CommandArgChain, newStatus string) []Ticket {
 	}
 
 	return tickets
-}
-
-func get_transitions_for_tickets(ticketIDs []string) TicketTransitionsMap {
-	if len(ticketIDs) < 1 {
-		log.Fatal("No Ticket IDs given", ticketIDs)
-	}
-
-	if len(ticketIDs) == 1 {
-		transitions, get_transitions_err := get_issue_transitions(ticketIDs[0])
-
-		if get_transitions_err != nil {
-			log.Fatal("Could not get ticket '", ticketIDs[0], "' transitions. ", get_transitions_err.Error())
-		}
-
-		return TicketTransitionsMap{
-			ticketIDs[0]: transitions.Transitions,
-		}
-	}
-
-	ch := make(chan *TicketTransitions, len(ticketIDs))
-	ticket_transitions := TicketTransitionsMap{}
-	var wg sync.WaitGroup
-
-	for _, ticketID := range ticketIDs {
-		if _, exists := ticket_transitions[ticketID]; exists {
-			continue
-		}
-
-		ticket_transitions[ticketID] = []IssueTransition{}
-		wg.Add(1)
-
-		go func(ticketID string) {
-			defer wg.Done()
-			transitions, err := get_issue_transitions(ticketID)
-
-			if err != nil {
-				fmt.Println("Could not get Ticket", ticketID, "Transitions.", err.Error())
-			}
-
-			ch <- transitions
-		}(ticketID)
-	}
-
-	wg.Wait()
-	close(ch)
-
-	for result := range ch {
-		if result != nil {
-			ticket_transitions[result.TicketID] = result.Transitions
-		}
-	}
-
-	return ticket_transitions
 }

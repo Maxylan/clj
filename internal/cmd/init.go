@@ -24,7 +24,7 @@ func register_init(
 		Execute: Setup,
 		Details: CommandDetails{
 			Name:			cmd_init,
-			Usage:			fmt.Sprintf("%s init", program.Name),
+			Usage:			fmt.Sprintf("%s [init|setup]", program.Name),
 			Description:	"Performs initial setup / configuration. Can be re-run later to reconfigure this utility.",
 			Subcommands:	[]CommandDetails{},
 		},
@@ -32,7 +32,13 @@ func register_init(
 }
 
 func match_init(chain CommandArgChain) bool {
-	return !IsConfigured() || (len(chain.Keywords) > 0 && strings.EqualFold(chain.Keywords[0], "init"))
+	if !IsConfigured() {
+		return true
+	}
+	if (len(chain.Keywords) == 0) {
+		return false
+	}
+	return strings.EqualFold(chain.Keywords[0], "init") || strings.EqualFold(chain.Keywords[0], "setup")
 }
 
 

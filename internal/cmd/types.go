@@ -38,7 +38,7 @@ type Command struct {
 	Details	CommandDetails
 }
 
-type Commands [5]Command
+type Commands [6]Command
 
 type Config struct {
     JiraURL string `json:"jira_url"`
