@@ -32,7 +32,10 @@ For more details about capabilities, `clj help` will give you this lovely print,
 **Find Transitions** for tickets `PROJ-1337` and `CUST-128`
 <br/>`clj PROJ-1337 CUST-128`
 
-**Assign** user "Maxylan" to ticket `PROJ-1337`, leave a comment on `PROJ-1337` and print the comment section, and finally print a detailed view of ticket `PROJ-1337` _(all in a single command)_
+**Find Users** matching search "`Maxy`"
+<br/>`clj users Maxy`
+
+**Assign** user "Maxylan" to ticket `PROJ-1337`, leave a **comment** on `PROJ-1337` _(print the comment section)_, and finally **print** a detailed **view** of ticket `PROJ-1337` _(all in a single command)_
 <br/>`clj set assignee "Maxylan" on PROJ-1337 and comment "Assigning ticket to myself" on PROJ-1337 -o and view PROJ-1337 --detailed`
 
 ## Help
