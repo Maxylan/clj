@@ -13,6 +13,8 @@ I love creating tools for myself as a way to practice a new technology!
  * Parsing Jira markup to a pretty console print
  * Converting some simple markup to Jira markup
  * Post comment on ticket(s)
+ * Search for active users
+ * Set Assignee / Reporter of ticket(s)
  * Get transitions _(statuses)_ of ticket(s)
  * "Transition" the status of ticket(s)
 
@@ -30,7 +32,7 @@ For more details about capabilities, `clj help` will give you this lovely print,
 <br/>`clj PROJ-1337`
 
 **Find Transitions** for tickets `PROJ-1337` and `CUST-128`
-<br/>`clj PROJ-1337 CUST-128`
+<br/>`clj stat PROJ-1337 CUST-128`
 
 **Find Users** matching search "`Maxy`"
 <br/>`clj users Maxy`
