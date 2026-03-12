@@ -23,8 +23,9 @@ func BuildCommandRegistry(
     registry = Commands{
 		register_help(details),
 		register_init(details),
-		register_set(details),
+		register_users(details),
 		register_transitions(details),
+		register_set(details),
 		register_comment(details),
 		register_default(details),
 	}
@@ -74,6 +75,8 @@ func ParseArgs(args []string, verbose bool) []CommandArgChain {
 		isValidTicketName := IsValidTicketName(arg)
 
 		switch {
+		case len(arg) == 0:
+			out[cur].Keywords = append(out[cur].Keywords, arg)
 		case strings.EqualFold(arg, "and"):
 			cur++
 			setTickets = false

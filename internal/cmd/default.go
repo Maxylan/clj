@@ -63,7 +63,7 @@ func register_default(
 }
 
 func match_default(chain CommandArgChain) bool { 
-	return len(chain.Keywords) == 0 && len(chain.TicketIDs) > 0
+	return (len(chain.Keywords) == 0 || strings.EqualFold(chain.Keywords[0], "view")) && len(chain.TicketIDs) > 0
 }
 
 func view_tickets(chain CommandArgChain) {

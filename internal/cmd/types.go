@@ -38,7 +38,7 @@ type Command struct {
 	Details	CommandDetails
 }
 
-type Commands [6]Command
+type Commands [7]Command
 
 type Config struct {
     JiraURL string `json:"jira_url"`
@@ -179,3 +179,12 @@ type IssueTransition struct {
 }
 
 type TicketTransitionsMap map[string][]IssueTransition
+
+type JiraUser struct {
+	Key				string			`json:"key"`
+	Name			string			`json:"name"`
+	DisplayName		string			`json:"displayName"`
+	Active			bool			`json:"active"`
+	Deleted			bool			`json:"deleted"`
+	TimeZone		string			`json:"timeZone"`
+}

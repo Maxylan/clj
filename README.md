@@ -24,6 +24,19 @@ Configuration happens automagically, as you try to use the tool for the first ti
 
 For more details about capabilities, `clj help` will give you this lovely print, explaining each subcommand in detail.
 
+## Examples
+
+**View** ticket `PROJ-1337`
+<br/>`clj PROJ-1337`
+
+**Find Transitions** for tickets `PROJ-1337` and `CUST-128`
+<br/>`clj PROJ-1337 CUST-128`
+
+**Assign** user "Maxylan" to ticket `PROJ-1337`, leave a comment on `PROJ-1337` and print the comment section, and finally print a detailed view of ticket `PROJ-1337` _(all in a single command)_
+<br/>`clj set assignee "Maxylan" on PROJ-1337 and comment "Assigning ticket to myself" on PROJ-1337 -o and view PROJ-1337 --detailed`
+
+## Help
+
 ```
 $ clj
 » Help
@@ -39,16 +52,19 @@ $ clj
 ├ clj [init|setup]
 ╰ "Performs initial setup / configuration. Can be re-run later to reconfigure this utility."
 
-» Set some field(s) on Ticket(s)
-├ clj set <Field> <Value> on <Tickets...>
-├ "Update some field on ticket(s), see subcommands. Ex. `clj set status "Done" on PROJ-1337`"
+» Search / Find matching users
+├ clj [u|user|users] "<Value>"
+├ "Search for users matching <Value>, remember to use quotes if your search contains whitespace characters."
 ╰ Subcommands:
-        • Field: status
-        ├ clj set [status|transition] <Value> on <...>
-        ╰ "Set 'status' / 'transition' on ticket(s). See `stat` for available transitions. Ex. `clj stat <PROJ-1337>`"
-        • View Updated Tickets
-        ├ clj set <...> on <...> [-t|--view-tickets]
-        ╰ "Print updated ticket(s)."
+        • Detailed view
+        ├ clj <...> [-d|--detailed]
+        ╰ "Include as many details as possible"
+        • Exact / Strict matching
+        ├ clj <...> [-e|--exact]
+        ╰ "Force exact / strict matching."
+        • Include Deleted Users
+        ├ clj <...> [-i|--include-deleted]
+        ╰ "Override default behaviour that filters out deleted users."
 
 
 » Available Ticket Transitions (statuses)
@@ -58,6 +74,40 @@ $ clj
         • Detailed view
         ├ clj <...> [-d|--detailed]
         ╰ "Include as many details as possible"
+
+
+» Set some field(s) on Ticket(s)
+├ clj set <Field> <Value> on <Tickets...>
+├ "Update some field on ticket(s), see subcommands. Ex. `clj set status "Done" on PROJ-1337`"
+╰ Subcommands:
+        • Field: assignee
+        ├ clj set assignee <User> on <...>
+        ├ "Set 'Assignee' of ticket(s). Picks best user-match. See subcommand `users` for available users. Ex. `clj users`"
+        ╰ Subcommands:
+                • Exact / Strict matching
+                ├ clj <...> [-e|--exact]
+                ╰ "Force exact / strict matching in your user search."
+                • Prompt to select
+                ├ clj <...> [-s|--select]
+                ╰ "Instead of auto-picking best match, this will prompt you for input. Let's you pick the user."
+
+        • Field: reporter
+        ├ clj set reporter <User> on <...>
+        ├ "Set 'Reporter' of ticket(s). See subcommand `users` for available users. Ex. `clj users`"
+        ╰ Subcommands:
+                • Exact / Strict matching
+                ├ clj <...> [-e|--exact]
+                ╰ "Force exact / strict matching in your user search."
+                • Prompt to select
+                ├ clj <...> [-s|--select]
+                ╰ "Instead of auto-picking best match, this will prompt you for input. Let's you pick the user."
+
+        • Field: status
+        ├ clj set [status|transition] <Value> on <...>
+        ╰ "Set 'status' ('transition') on ticket(s). See subcommand `stat` for available transitions. Ex. `clj stat <PROJ-1337>`"
+        • Print Updated Tickets
+        ├ clj set <...> on <...> [-p|--print]
+        ╰ "Print updated ticket(s)."
 
 
 » Comment on Ticket(s)

@@ -65,6 +65,10 @@ func comment_on_tickets(chain CommandArgChain) {
 		Body: MarshalJiraMarkdown(chain.Keywords[1]),
 	}
 
+	if slices.Contains(chain.Args, "-v") || slices.Contains(chain.Args, "--verbose") {
+		fmt.Println(Ansii(Dim, Italic, "» Posting comment '", comment.Body, "' on ticket(s) ", strings.Join(chain.TicketIDs, ", ")))
+	}
+
 	if len(chain.TicketIDs) == 1 {
 		success, postCommentErr := post_ticket_comment(chain.TicketIDs[0], comment)
 

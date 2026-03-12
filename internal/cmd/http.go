@@ -4,6 +4,7 @@ import (
 	"log"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"bytes"
 	"time"
 	"io"
@@ -57,7 +58,7 @@ func request(
 }
 
 func get_ticket(ticketId string) (*Ticket, error) {
-	req, reqErr := request("GET", "/rest/api/2/issue/" + ticketId, nil, nil)
+	req, reqErr := request("GET", "/rest/api/2/issue/" + url.QueryEscape(ticketId), nil, nil)
 
 	if reqErr != nil {
 		return nil, reqErr
@@ -83,7 +84,7 @@ func get_ticket(ticketId string) (*Ticket, error) {
 }
 
 func get_issue_transitions(ticketId string) (*TicketTransitions, error) {
-	req, reqErr := request("GET", "/rest/api/2/issue/" + ticketId + "/transitions", nil, nil)
+	req, reqErr := request("GET", "/rest/api/2/issue/" + url.QueryEscape(ticketId) + "/transitions", nil, nil)
 
 	if reqErr != nil {
 		return nil, reqErr
@@ -117,6 +118,32 @@ func get_issue_transitions(ticketId string) (*TicketTransitions, error) {
 	return out, nil
 }
 
+func get_matching_users_search(partialUserName string) (*[]JiraUser, error) {
+	req, reqErr := request("GET", "/rest/api/2/user/search?username=" + url.QueryEscape(partialUserName), nil, nil)
+
+	if reqErr != nil {
+		return nil, reqErr
+	}
+
+	client := &http.Client{ Timeout: 30 * time.Second }
+	resp, resErr := client.Do(req)
+	if resErr != nil {
+		return nil, resErr
+	}
+
+	defer resp.Body.Close()
+
+	body, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, readErr
+	}
+
+	parsed := &[]JiraUser{}
+	unmarshalError := json.Unmarshal(body, parsed)
+
+	return parsed, unmarshalError
+}
+
 func post_ticket_comment(ticketId string, comment NewComment) (bool, error) {
 	bodyData, marshalError := json.Marshal(comment)
 	if marshalError != nil {
@@ -125,7 +152,7 @@ func post_ticket_comment(ticketId string, comment NewComment) (bool, error) {
 
 	req, reqErr := request(
 		"POST",
-		"/rest/api/2/issue/" + ticketId + "/comment",
+		"/rest/api/2/issue/" + url.QueryEscape(ticketId) + "/comment",
 		&Headers{
 			"Content-Type": "application/json",
 		},
@@ -152,7 +179,7 @@ func post_ticket_transition(ticketId string, transitionId string) (bool, error) 
 
 	req, reqErr := request(
 		"POST",
-		"/rest/api/2/issue/" + ticketId + "/transitions",
+		"/rest/api/2/issue/" + url.QueryEscape(ticketId) + "/transitions",
 		&Headers{
 			"Content-Type": "application/json",
 		},
@@ -172,4 +199,29 @@ func post_ticket_transition(ticketId string, transitionId string) (bool, error) 
 
 	body, readErr := io.ReadAll(resp.Body)
 	return body != nil, readErr
+}
+
+func put_ticket_fields(ticketId string, bodyData []byte) (bool, error) {
+	req, reqErr := request(
+		"PUT",
+		"/rest/api/2/issue/" + url.QueryEscape(ticketId),
+		&Headers{
+			"Content-Type": "application/json",
+		},
+		&bodyData,
+	)
+	if reqErr != nil {
+		return false, reqErr
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, resErr := client.Do(req)
+	if resErr != nil {
+		return false, resErr
+	}
+
+	defer resp.Body.Close()
+
+	_, readErr := io.ReadAll(resp.Body)
+	return readErr == nil, readErr
 }

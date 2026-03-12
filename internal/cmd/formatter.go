@@ -308,3 +308,19 @@ func FormatTransition(transition IssueTransition, detailed bool) string {
 
 	return out + Reset
 }
+
+func FormatUser(user JiraUser, detailed bool) string {
+	out := fmt.Sprintf("  • %s\t%s@%s%s", user.DisplayName, Dim, user.Name, Italic)
+
+	if detailed {
+		if len(user.TimeZone) > 0 {
+			out += fmt.Sprintf("\tTZ \"%s\"", user.TimeZone)
+		}
+
+		if len(user.Key) > 0 {
+			out += fmt.Sprintf("\t(%s)", user.Key)
+		}
+	}
+
+	return out + Reset
+}

@@ -125,9 +125,21 @@ func render_transitions(ticketID string, transitions []IssueTransition, args []s
 	// [-d|--detailed] - Include more details
 	detailed := slices.Contains(args, "-d") || slices.Contains(args, "--detailed")
 
+	maxLen := 0
+
+	for _, t := range transitions {
+		if nl := len(t.Name); nl > maxLen {
+			maxLen = nl
+		}
+	}
+
 	options := Map(
 		transitions,
 		func(t IssueTransition, _ int) string {
+			if pad := maxLen - len(t.Name); pad > 0 {
+				t.Name += strings.Repeat(" ", pad)
+			}
+
 			return FormatTransition(t, detailed)
 		},
 	)
